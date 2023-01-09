@@ -5,7 +5,7 @@ ENV DB_HOST=
 # ENV BATCH_INTERVAL=
 # Evento cut off dates for the fall and spring term.
 ENV CUTOFF_DATES=04-10,10-10
-ENV LOG_LEVEL=
+ENV LOG_LEVEL=DEBUG
 
 COPY requirements.txt /requirements.txt
 COPY src/ /app/
