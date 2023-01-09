@@ -2,4 +2,4 @@ import settings
 import logging
 
 def run():
-    logger.debug("run service funciton")
+    logger.debug("run service function")
