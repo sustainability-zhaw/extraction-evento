@@ -5,7 +5,7 @@ services:
     restart: 'no'
     environment:
       DB_HOST: dgraph_standalone:8080
-      
+
 
   db:
     hostname: dgraph_standalone # Hardcoded in db_init entrypoint.sh
@@ -16,7 +16,7 @@ services:
       - '9080:9080'
 
   db_init:
-    image: ghcr.io/sustainability-zhaw/dgraph-schema:sha-0a7a598
+    image: ghcr.io/sustainability-zhaw/dgraph-schema:sha-e3c06cf
     restart: 'no'
     environment:
       DGRAPH_SERVER: http://dgraph_standalone:8080
