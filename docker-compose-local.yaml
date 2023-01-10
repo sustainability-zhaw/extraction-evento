@@ -1,15 +1,11 @@
-version: "3.8"
 services:
-  # app:
-  #   build:
-  #     context: ./
-  #   restart: 'no'
-  #   environment:
-  #     DB_HOST: dgraph_standalone:8080
-  #   # the following uses 
-  #   command: tail -f /dev/null
-  #   volumes:
-  #     - ./app/src:/app
+  app:
+    build:
+      context: ./
+    restart: 'no'
+    environment:
+      DB_HOST: dgraph_standalone:8080
+      
 
   db:
     hostname: dgraph_standalone # Hardcoded in db_init entrypoint.sh
@@ -24,8 +20,7 @@ services:
     restart: 'no'
     environment:
       DGRAPH_SERVER: http://dgraph_standalone:8080
-    profiles:
-      - tools
+
 
   db_browser:
     image: dgraph/ratel:v21.12.0
