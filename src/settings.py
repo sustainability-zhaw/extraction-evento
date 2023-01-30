@@ -1,4 +1,5 @@
 import os
+import json
 
 if os.path.exists('/etc/app/config.json'):
     with open('/etc/app/config.json') as secrets_file:
