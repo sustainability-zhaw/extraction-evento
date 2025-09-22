@@ -1,23 +1,17 @@
-FROM python:3.11.4-slim-bullseye
+FROM python:3.11.1-slim-bullseye
 
-ENV TARGET_HOST=
-ENV DB_HOST=
-# ENV BATCH_INTERVAL=
-# Evento cut off dates for the fall and spring term.
-ENV CUTOFF_DATES=04-10,10-10
-ENV LOG_LEVEL=DEBUG
+RUN groupadd -r app && \
+    useradd --no-log-init -r -m -g app app
 
-COPY requirements.txt /requirements.txt
+COPY requirements.txt .
+RUN pip install --root-user-action=ignore --no-cache-dir -r requirements.txt && \
+    rm requirements.txt
+
 COPY src/ /app/
-
-RUN pip install -r requirements.txt && \
-    rm requirements.txt && \
-    groupadd -r app && \
-    useradd --no-log-init -r -g app app && \
-    chmod -R 775 /app
-
-WORKDIR /app
+RUN chmod -R 775 /app
 
 USER app
+
+WORKDIR /app
 
 CMD [ "python", "main.py" ]
