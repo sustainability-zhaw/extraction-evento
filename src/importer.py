@@ -13,10 +13,8 @@ from settings import settings
 
 logger = logging.getLogger(__name__)
 
-graphql_client = Client(
-    transport=RequestsHTTPTransport(url=f"http://{settings.DB_HOST}/graphql"),
-    fetch_schema_from_transport=True
-)
+# don't initialize client here, because settings are not loaded, yet
+graphql_client = None
 
 
 def batch(list, batch_size):
@@ -58,6 +56,12 @@ def build_info_object(module):
 
 
 def upsert_info_object(info_object):
+    global graphql_client
+
+    if graphql_client is None:
+        logger.info(f"connect to database at '{settings.DB_HOST}'")
+        graphql_client = Client(transport=RequestsHTTPTransport(url=f"http://{settings.DB_HOST}/graphql"))
+    
     graphql_client.execute(
         gql(
             """
