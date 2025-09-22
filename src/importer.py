@@ -44,13 +44,17 @@ def fetch_module(url):
     # TODO: extract values from content
 
 
+def build_abstract(module):
+    return ""
+
+
 def build_info_object(module):
     info_object = {
-        "link": module["url"],
+        "link": module["link"],
         "category": { "name": "modules" },
         "title": module["title"],
         "departments": [{ "id": "department_" + module["department"].upper() }],
-        "abstract": ""
+        "abstract": build_abstract(module)
     }
     return info_object
 
@@ -80,8 +84,12 @@ def upsert_info_object(info_object):
     )
 
 
-def run(channel):    
-    module_urls = fetch_module_urls()
+def run(channel):
+    try:
+        module_urls = fetch_module_urls()
+    except:
+        logger.exception("Error while fetching module urls.")
+        return
 
     for batch_of_module_urls, batch_number, number_of_batches in batch(module_urls, settings.BATCH_SIZE):
         logger.info(f"Processing batch {batch_number} of {number_of_batches}")
@@ -100,7 +108,6 @@ def run(channel):
             except:
                 logger.exception(f"An error occured during processing of module: {module_url}")
                 continue
-        
 
         logger.info(f"Finished processing batch {batch_number} of {number_of_batches}")
 
