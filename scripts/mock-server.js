@@ -1,9 +1,4 @@
-import {
-    createApp,
-    defineEventHandler,
-    getQuery,
-    toNodeListener
-} from "h3";
+import { createApp, defineEventHandler, getQuery, toNodeListener } from "h3";
 import { listen } from "listhen";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
@@ -22,4 +17,4 @@ app.use(
   })
 );
 
-listen(toNodeListener(app));
+listen(toNodeListener(app), { hostname: "0.0.0.0" });
