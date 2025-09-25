@@ -1,8 +1,9 @@
+import { gql, request as gqlRequest } from "graphql-request";
 import { parseHTML } from "linkedom";
 import { setTimeout } from "node:timers/promises";
-import { getConfig } from "./config.js";
-import { request as gqlRequest, gql } from "graphql-request";
 import { get as getLogger } from "service_logger";
+import { getConfig } from "./config.js";
+import { getBroker } from "./message-queue.js";
 
 const logger = getLogger("importer");
 
@@ -39,19 +40,19 @@ async function getModuleURLs() {
 
 function parseModuleId(labels) {
   const moduleId = labels.find(element => element.textContent === "Nr.")?.nextElementSibling?.textContent;
-  let departement;
+  let department;
   let level;
 
   if (moduleId) {
     const values = moduleId.split(".");
-    if (values.length > 0) departement = values[0].toUpperCase();
+    if (values.length > 0) department = values[0].toUpperCase();
     if (values.length > 1) level = values[1];
   }
 
-  return { moduleId, departement, level }
+  return { moduleId, department, level }
 }
 
-function parseVersion(dom, document) {
+function parseVersion(document) {
   const element = document.querySelectorAll("i").find(el => el.textContent.trim().startsWith("Version: "))
   if (element) {
     const result = /^Version: (?<version>\d+\.\d+)/.exec(element.textContent);
@@ -101,11 +102,11 @@ async function importModule(url) {
 
   const labels = document.querySelectorAll(".detail-label");
 
-  const { moduleId, departement, level } = parseModuleId(labels);
+  const { moduleId, department, level } = parseModuleId(labels);
   const title = labels.find(element => element.textContent === "Bezeichnung")?.nextElementSibling?.textContent;
   const organizer = labels.find(element => element.textContent === "Veranstalter")?.nextElementSibling?.textContent;
   const credits = labels.find(element => element.textContent === "Credits")?.nextElementSibling?.textContent;
-  const version = parseVersion(dom, document);
+  const version = parseVersion(document);
   const abstract = parseAbstract(document);
 
   const infoObject = {
@@ -117,7 +118,7 @@ async function importModule(url) {
 
   if (title) infoObject.title = title;
   if (abstract) infoObject.abstract = abstract;
-  if (departement) infoObject.departement = { id: `department_${departement}` };
+  if (department) infoObject.departments = [{ id: `department_${department}` }];
 
   logger.debug(infoObject)
 
@@ -135,7 +136,8 @@ async function importModule(url) {
     { infoObject }
   );
 
-  // TODO: add link to queue
+  const borker = getBroker();
+  await borker.publish("infoObject", { link: url });
 }
 
 export async function run() {
@@ -157,8 +159,9 @@ export async function run() {
         const results = await Promise.allSettled(batch.map((url) => importModule(url)));
         
         results.forEach((result, index) => {
-          if (result.status === "rejected")
-            logger.warning(`Failed to import module ${batch[index]} reason: ${result.reason}`);
+          if (result.status === "rejected") {
+            logger.error(`Failed to import module ${batch[index]} reason: ${result.reason}`);
+          }
         });
 
         logger.debug(`Urls remaining: ${urls.length}`);

@@ -1,9 +1,9 @@
-import { init as initLogger } from "service_logger";
-import { getConfig, loadConfig } from "./config.js";
+import { loadConfig } from "./config.js";
 import { run as runImporter } from "./importer.js";
+import { init as initLogger } from "./logger.js";
+import { init as initMessageQueue } from "./message-queue.js";
 
 await loadConfig();
-const config = getConfig();
-
-initLogger({ level: config.logLevel });
-runImporter();
+initLogger();
+await initMessageQueue();
+await runImporter();
