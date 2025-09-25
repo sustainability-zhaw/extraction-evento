@@ -1,4 +1,4 @@
-import { JSDOM } from "jsdom";
+import { parseHTML } from "linkedom";
 import { setTimeout } from "node:timers/promises";
 import { getConfig } from "./config.js";
 import { request as gqlRequest, gql } from "graphql-request";
@@ -23,8 +23,8 @@ async function getModuleURLs() {
     throw `Responded with ${response.status}`;
 
   const content = await response.text();
-  const dom = new JSDOM(content);
-  const elements = dom.window.document.querySelectorAll(
+  const dom = parseHTML(content);
+  const elements = dom.document.querySelectorAll(
     "tr.result-row > td:nth-of-type(1) > span:nth-of-type(1) > a:nth-of-type(2)"
   );
 
@@ -52,30 +52,38 @@ function parseModuleId(labels) {
 }
 
 function parseVersion(dom, document) {
-  const xpathResult = document.evaluate(
-    "//i[contains(text(), 'Version: ')]",
-    document,
-    null,
-    dom.window.XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
-    null
-  );
-
-  if (xpathResult.snapshotLength > 0) {
-    const element = xpathResult.snapshotItem(0);
+  const element = document.querySelectorAll("i").find(el => el.textContent.trim().startsWith("Version: "))
+  if (element) {
     const result = /^Version: (?<version>\d+\.\d+)/.exec(element.textContent);
-    if (result.groups?.version) {
-      return result.groups.version;
-    }
+    if (result.groups?.version) return result.groups.version;
   }
 }
 
 function parseAbstract(document) {
-  return Array.from(document.querySelectorAll("table tbody tr td:first-child")).reduce((acc, element) => {
-    if(element.textContent === "" || /beschrieb|inhalt/i.test(element.textContent)) {
-      acc += element.nextElementSibling?.textContent ?? "";
+  let abstract = "";
+  const tables = document.querySelectorAll("td.topic-inhalt table");
+
+  for (const table of tables) {
+    const firstColCells = table.querySelectorAll('tbody tr td:first-child');
+
+    for (let i = 0; i < firstColCells.length; i++) {
+      const labelCell = firstColCells[i];
+
+      if(/beschrieb|inhalt/i.test(labelCell.textContent)) {
+        abstract += labelCell.nextElementSibling?.textContent.trim() ?? "";
+
+        // If the cell below is empty (no label) it is likely that the info is split over multiple rows.
+        while(i < firstColCells.length - 1) {
+          const labelCellBelow = firstColCells[i+1];
+          if (labelCellBelow.textContent?.trim() !== "") break;
+          abstract += labelCellBelow.nextElementSibling?.textContent.trim() ?? "";
+          i++;
+        }
+      }
     }
-    return acc;
-  }, "");
+  }
+
+  return abstract;
 }
 
 async function importModule(url) {
@@ -88,10 +96,10 @@ async function importModule(url) {
       throw `Responded with ${response.status}`;
 
   const content = await response.text();
-  const dom = new JSDOM(content);
-  const document = dom.window.document;
+  const dom = parseHTML(content);
+  const document = dom.document;
 
-  const labels = Array.from(document.querySelectorAll(".detail-label"));
+  const labels = document.querySelectorAll(".detail-label");
 
   const { moduleId, departement, level } = parseModuleId(labels);
   const title = labels.find(element => element.textContent === "Bezeichnung")?.nextElementSibling?.textContent;
@@ -110,6 +118,8 @@ async function importModule(url) {
   if (title) infoObject.title = title;
   if (abstract) infoObject.abstract = abstract;
   if (departement) infoObject.departement = { id: `department_${departement}` };
+
+  logger.debug(infoObject)
 
   await gqlRequest(
     `http://${config.dbHost}/graphql`,
@@ -137,7 +147,7 @@ export async function run() {
       const urls = await getModuleURLs();
 
       if (urls.length === 0) {
-        logger.warn("No module urls found!");
+        logger.warning("No module urls found!");
       }
 
       logger.info(`Importing ${urls.length} modules`);
@@ -148,7 +158,7 @@ export async function run() {
         
         results.forEach((result, index) => {
           if (result.status === "rejected")
-            logger.warn(`Failed to import module ${batch[index]} reason: ${result.reason}`);
+            logger.warning(`Failed to import module ${batch[index]} reason: ${result.reason}`);
         });
 
         logger.debug(`Urls remaining: ${urls.length}`);

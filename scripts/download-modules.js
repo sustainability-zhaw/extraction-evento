@@ -1,4 +1,4 @@
-import { JSDOM } from "jsdom";
+import { parseHTML } from "linkedom";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -16,8 +16,8 @@ const eventoURL = new URL(
 const content = await fetch(eventoURL).then(resp => resp.text());
 writeFileSync(join(outputDir, "search.html"), content, { encoding: "utf-8" });
 
-const dom = new JSDOM(content);
-const elements = dom.window.document.querySelectorAll(
+const dom = new parseHTML(content);
+const elements = dom.document.querySelectorAll(
   "tr.result-row > td:nth-of-type(1) > span:nth-of-type(1) > a:nth-of-type(2)"
 );
 

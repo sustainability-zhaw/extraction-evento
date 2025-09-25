@@ -21,7 +21,7 @@
     "defu": "^6.1.4",
     "graphql": "^16.11.0",
     "graphql-request": "^7.2.0",
-    "jsdom": "^27.0.0",
+    "linkedom": "^0.18.12",
     "service_logger": "github:phish108/node-service-logger#5da8533"
   },
   "devDependencies": {
