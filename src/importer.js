@@ -120,8 +120,6 @@ async function importModule(url) {
   if (abstract) infoObject.abstract = abstract;
   if (department) infoObject.departments = [{ id: `department_${department}` }];
 
-  logger.debug(infoObject)
-
   await gqlRequest(
     `http://${config.dbHost}/graphql`,
     gql`
@@ -156,22 +154,23 @@ export async function run() {
 
       while (urls.length) {
         const batch = urls.splice(0, config.batchSize);
-        const results = await Promise.allSettled(batch.map((url) => importModule(url)));
-        
-        results.forEach((result, index) => {
-          if (result.status === "rejected") {
-            logger.error(`Failed to import module ${batch[index]} reason: ${result.reason}`);
-          }
-        });
 
-        logger.debug(`Urls remaining: ${urls.length}`);
+        for (const url of batch) {
+          try { await importModule(url); }
+          catch(err) { console.error(err); }
+        }
+
+        logger.info(`Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules`);
+        logger.debug(`${urls.length} modules.remaining`);
+        
+        await setTimeout(config.batchInterval * 1000);
       }
     } catch (err) {
       logger.error(err);
     }
 
     logger.info(`Finished import`)
-    logger.info(`Waiting for ${config.importInterval}s until next run`)
+    logger.info(`Waiting for ${config.importInterval}s before the next run`)
 
     await setTimeout(config.importInterval * 1000);
   }

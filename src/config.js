@@ -2,10 +2,11 @@ import { defu } from "defu";
 import { pathToFileURL } from "node:url";
 
 let config =  {
-  logLevel: "error",
+  logLevel: "debug",
   dbHost: "database:8080",
   eventoSearchUrl: "http://host.docker.internal:3000", // "http://localhost:3000" "https://eventoweb.zhaw.ch/Evt_Pages/SuchResultat.aspx?node=c594e3e5-cd9a-4204-9a61-de1e43ccb7b0&Tabkey=WebTab_ModuleSuchenZHAW",
-  batchSize: 5,
+  batchSize: 100,
+  batchInterval: 10, // 5min
   importInterval: 86400, // 24h
   mqHost: "mq",
   mqUser: "extraction-evento",
