@@ -18,11 +18,11 @@
   "homepage": "https://github.com/sustainability-zhaw/extraction-evento#readme",
   "dependencies": {
     "amqplib": "^0.10.9",
-    "consola": "^3.4.2",
     "defu": "^6.1.4",
     "graphql": "^16.11.0",
     "graphql-request": "^7.2.0",
-    "jsdom": "^27.0.0"
+    "jsdom": "^27.0.0",
+    "service_logger": "github:phish108/node-service-logger#5da8533"
   },
   "devDependencies": {
     "h3": "^1.15.4",

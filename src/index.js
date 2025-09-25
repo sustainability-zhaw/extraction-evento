@@ -1,7 +1,9 @@
-import { loadConfig } from "./config.js";
-import { initialize as initLogger } from "./logger.js"
+import { getConfig, loadConfig } from "./config.js";
+import { init as initLogger } from "service_logger"
 import { run as runImporter } from "./importer.js";
 
 await loadConfig();
-initLogger();
+const config = getConfig();
+
+initLogger({ level: config.logLevel });
 runImporter();
