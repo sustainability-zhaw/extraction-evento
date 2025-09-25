@@ -11,7 +11,7 @@ app.use(
     const outputDir = fileURLToPath(new URL("../.generated", import.meta.url));
     const query = getQuery(event);
     if ("IDAnlass" in query) {
-      return readFile(join(outputDir, `modules/${query["IDAnlass"]}.html`));
+      return readFile(join(outputDir, `modules/${query["IDAnlass"]}.html`), { encoding: "utf-8" });
     }
     return readFile(join(outputDir, "search.html"), { encoding: "utf-8" });
   })
