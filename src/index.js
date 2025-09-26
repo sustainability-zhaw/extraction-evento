@@ -1,3 +1,3 @@
-import { run } from "./impoter.js";
+import { run } from "./importer.js";
 
 await run();
