@@ -11,11 +11,11 @@ const configs = (await Promise.allSettled(configPromises))
   .map((p) => p.value);
 
 export default defu(...configs, {
-  logLevel: "debug",
+  logLevel: "error",
   dbHost: "database:8080",
-  eventoSearchUrl: "http://host.docker.internal:3000", // "http://localhost:3000" "https://eventoweb.zhaw.ch/Evt_Pages/SuchResultat.aspx?node=c594e3e5-cd9a-4204-9a61-de1e43ccb7b0&Tabkey=WebTab_ModuleSuchenZHAW",
+  eventoSearchUrl: "https://eventoweb.zhaw.ch/Evt_Pages/SuchResultat.aspx?node=c594e3e5-cd9a-4204-9a61-de1e43ccb7b0&Tabkey=WebTab_ModuleSuchenZHAW",
   batchSize: 100,
-  batchInterval: 10, // 5min
+  batchInterval: 10,
   importInterval: 86400, // 24h
   mqHost: "mq",
   mqUser: "extraction-evento",
