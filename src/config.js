@@ -1,7 +1,16 @@
 import { defu } from "defu";
 import { pathToFileURL } from "node:url";
 
-let config =  {
+const configPromises = [
+  "/etc/app/config.json",
+  "/etc/app/secrets.json"
+].map((path) => import(pathToFileURL(path).toString()));
+
+const configs = (await Promise.allSettled(configPromises))
+  .filter((p) => p.status === "fulfilled")
+  .map((p) => p.value);
+
+export default defu(...configs, {
   logLevel: "debug",
   dbHost: "database:8080",
   eventoSearchUrl: "http://host.docker.internal:3000", // "http://localhost:3000" "https://eventoweb.zhaw.ch/Evt_Pages/SuchResultat.aspx?node=c594e3e5-cd9a-4204-9a61-de1e43ccb7b0&Tabkey=WebTab_ModuleSuchenZHAW",
@@ -12,18 +21,4 @@ let config =  {
   mqUser: "extraction-evento",
   mqPass: "guest",
   mqExchange: "zhaw-km",
-};
-
-const configPaths = ["/etc/app/config.json", "/etc/app/secrets.json"];
-
-export async function loadConfig() {
-  const promises = configPaths.map((path) => import(pathToFileURL(path).toString()));
-  const configs = (await Promise.allSettled(promises))
-    .filter((p) => p.status === "fulfilled")
-    .map((p) => p.value);
-  config = defu(...configs, config);
-}
-
-export function getConfig() {
-  return config;
-}
+});

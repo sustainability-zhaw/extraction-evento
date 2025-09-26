@@ -1,9 +1,9 @@
-import { gql, request as gqlRequest } from "graphql-request";
+import { gql, request } from "graphql-request";
 import { parseHTML } from "linkedom";
 import { setTimeout } from "node:timers/promises";
-import { get as getLogger } from "service_logger";
-import { getConfig } from "./config.js";
-import { getBroker } from "./message-queue.js";
+import config from "./config.js";
+import { getLogger } from "./logger.js";
+import mq from "./mq.js";
 
 const logger = getLogger("importer");
 
@@ -15,12 +15,11 @@ function createPrintURL(url) {
   return _url;
 }
 
-async function getModuleURLs() {
-  const config = getConfig();
+async function fetchModuleURLList() {
   const eventoSearchURL = createPrintURL(config.eventoSearchUrl);
   const response = await fetch(eventoSearchURL);
 
-  if (response.status !== 200) 
+  if (response.status !== 200)
     throw `Responded with ${response.status}`;
 
   const content = await response.text();
@@ -70,12 +69,12 @@ function parseAbstract(document) {
     for (let i = 0; i < firstColCells.length; i++) {
       const labelCell = firstColCells[i];
 
-      if(/beschrieb|inhalt/i.test(labelCell.textContent)) {
+      if (/beschrieb|inhalt/i.test(labelCell.textContent)) {
         abstract += labelCell.nextElementSibling?.textContent.trim() ?? "";
 
         // If the cell below is empty (no label) it is likely that the info is split over multiple rows.
-        while(i < firstColCells.length - 1) {
-          const labelCellBelow = firstColCells[i+1];
+        while (i < firstColCells.length - 1) {
+          const labelCellBelow = firstColCells[i + 1];
           if (labelCellBelow.textContent?.trim() !== "") break;
           abstract += labelCellBelow.nextElementSibling?.textContent.trim() ?? "";
           i++;
@@ -88,13 +87,12 @@ function parseAbstract(document) {
 }
 
 async function importModule(url) {
-  const config = getConfig();
   const moduleURL = createPrintURL(url);
   const eventoId = moduleURL.searchParams.get("IDAnlass");
   const response = await fetch(moduleURL);
 
   if (response.status !== 200)
-      throw `Responded with ${response.status}`;
+    throw `Responded with ${response.status}`;
 
   const content = await response.text();
   const dom = parseHTML(content);
@@ -120,7 +118,7 @@ async function importModule(url) {
   if (abstract) infoObject.abstract = abstract;
   if (department) infoObject.departments = [{ id: `department_${department}` }];
 
-  await gqlRequest(
+  await request(
     `http://${config.dbHost}/graphql`,
     gql`
       mutation ($infoObject: [AddInfoObjectInput!]!) {
@@ -134,17 +132,14 @@ async function importModule(url) {
     { infoObject }
   );
 
-  const borker = getBroker();
-  await borker.publish("infoObject", { link: url });
+  await mq.publish("infoObject", { link: url });
 }
 
 export async function run() {
-  const config = getConfig();
-
   while (true) {
     try {
-      logger.info("Getting module urls");
-      const urls = await getModuleURLs();
+      logger.info("Fetching module urls");
+      const urls = await fetchModuleURLList();
 
       if (urls.length === 0) {
         logger.warning("No module urls found!");
@@ -157,12 +152,12 @@ export async function run() {
 
         for (const url of batch) {
           try { await importModule(url); }
-          catch(err) { console.error(err); }
+          catch (err) { console.error(err); }
         }
 
         logger.info(`Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules`);
         logger.debug(`${urls.length} modules.remaining`);
-        
+
         await setTimeout(config.batchInterval * 1000);
       }
     } catch (err) {

@@ -1,7 +1,5 @@
-import { init as initLogger } from "service_logger";
-import { getConfig } from "./config.js";
+import config from "./config.js";
+import { init } from "service_logger";
 
-export function init() {
-  const config = getConfig();
-  initLogger({ level: config.logLevel });
-}
+init({ level: config.logLevel });
+export { get as getLogger } from "service_logger";
