@@ -15,7 +15,7 @@ function createPrintURL(url) {
   return _url;
 }
 
-async function fetchModuleURLList() {
+async function fetchModuleList() {
   const eventoSearchURL = createPrintURL(config.eventoSearchUrl);
   const response = await fetch(eventoSearchURL);
 
@@ -86,13 +86,14 @@ function parseAbstract(document) {
   return abstract;
 }
 
-async function importModule(url) {
+async function fetchModule(url) {
   const moduleURL = createPrintURL(url);
   const eventoId = moduleURL.searchParams.get("IDAnlass");
   const response = await fetch(moduleURL);
 
-  if (response.status !== 200)
-    throw `Responded with ${response.status}`;
+  if (response.status !== 200) {
+    throw `Responded with ${response.status} ${url}`;
+  }
 
   const content = await response.text();
   const dom = parseHTML(content);
@@ -107,17 +108,21 @@ async function importModule(url) {
   const version = parseVersion(document);
   const abstract = parseAbstract(document);
 
-  const infoObject = {
-    link: url,
-    category: { name: "modules" },
-    language: "de",
-    dateUpdate: Date.now()
-  };
+  return {
+    url,
+    eventoId,
+    moduleId,
+    department,
+    level,
+    title,
+    organizer,
+    credits,
+    version,
+    abstract
+  }
+}
 
-  if (title) infoObject.title = title;
-  if (abstract) infoObject.abstract = abstract;
-  if (department) infoObject.departments = [{ id: `department_${department}` }];
-
+async function insertModule(module) {
   await request(
     `http://${config.dbHost}/graphql`,
     gql`
@@ -129,34 +134,44 @@ async function importModule(url) {
         }
       }
     `,
-    { infoObject }
+    {
+      infoObject: {
+        link: module.url,
+        category: { name: "modules" },
+        language: "de",
+        dateUpdate: Date.now() / 1000,
+        title: module.title,
+        abstract: module.abstract,
+        departments: module.department ? [{ id: `department_${module.department}` }] : undefined
+      }
+    }
   );
 
-  await mq.publish("infoObject", { link: url });
+  await mq.publish("infoObject", { link: module.url });
 }
 
 export async function run() {
   while (true) {
     try {
-      logger.info("Fetching module urls");
-      const urls = await fetchModuleURLList();
-
-      if (urls.length === 0) {
-        logger.warning("No module urls found!");
-      }
-
-      logger.info(`Importing ${urls.length} modules`);
+      logger.info("Fetching module list");
+      const urls = await fetchModuleList();
+      logger.info(`Fetched ${urls.length} modules`);
 
       while (urls.length) {
-        const batch = urls.splice(0, config.batchSize);
+        logger.info(`Processing next ${config.batchSize} modules.`)
 
-        for (const url of batch) {
-          try { await importModule(url); }
-          catch (err) { console.error(err); }
+        for (const url of urls.splice(0, config.batchSize)) {
+          try {
+            const module = await fetchModule(url);
+            await insertModule(module);
+          }
+          catch (err) { 
+            logger.error(err);
+          }
         }
 
-        logger.info(`Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules`);
-        logger.debug(`${urls.length} modules.remaining`);
+        logger.info(`${urls.length} modules remaining.`);
+        logger.info(`Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules.`);
 
         await setTimeout(config.batchInterval * 1000);
       }
