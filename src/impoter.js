@@ -19,8 +19,7 @@ async function fetchModuleList() {
   const eventoSearchURL = createPrintURL(config.eventoSearchUrl);
   const response = await fetch(eventoSearchURL);
 
-  if (response.status !== 200)
-    throw `Responded with ${response.status}`;
+  if (response.status !== 200) throw `Responded with ${response.status}`;
 
   const content = await response.text();
   const dom = parseHTML(content);
@@ -38,21 +37,32 @@ async function fetchModuleList() {
 }
 
 function parseModuleId(labels) {
-  const moduleId = labels.find(element => element.textContent === "Nr.")?.nextElementSibling?.textContent;
+  const moduleId = labels.find((element) => element.textContent === "Nr.")
+    ?.nextElementSibling?.textContent;
+
   let department;
   let level;
 
+  const isValidDepartment = (value) =>
+    ["A", "G", "L", "N", "P", "S", "T", "W", "R", "V"].includes(
+      value.toUpperCase()
+    );
+
   if (moduleId) {
     const values = moduleId.split(".");
-    if (values.length > 0) department = values[0].toUpperCase();
+    if (values.length > 0 && isValidDepartment(values[0]))
+      department = values[0].toUpperCase();
     if (values.length > 1) level = values[1];
   }
 
-  return { moduleId, department, level }
+  return { moduleId, department, level };
 }
 
 function parseVersion(document) {
-  const element = document.querySelectorAll("i").find(el => el.textContent.trim().startsWith("Version: "))
+  const element = document
+    .querySelectorAll("i")
+    .find((el) => el.textContent.trim().startsWith("Version: "));
+
   if (element) {
     const result = /^Version: (?<version>\d+\.\d+)/.exec(element.textContent);
     if (result.groups?.version) return result.groups.version;
@@ -64,7 +74,7 @@ function parseAbstract(document) {
   const tables = document.querySelectorAll("td.topic-inhalt table");
 
   for (const table of tables) {
-    const firstColCells = table.querySelectorAll('tbody tr td:first-child');
+    const firstColCells = table.querySelectorAll("tbody tr td:first-child");
 
     for (let i = 0; i < firstColCells.length; i++) {
       const labelCell = firstColCells[i];
@@ -76,7 +86,8 @@ function parseAbstract(document) {
         while (i < firstColCells.length - 1) {
           const labelCellBelow = firstColCells[i + 1];
           if (labelCellBelow.textContent?.trim() !== "") break;
-          abstract += labelCellBelow.nextElementSibling?.textContent.trim() ?? "";
+          abstract +=
+            labelCellBelow.nextElementSibling?.textContent.trim() ?? "";
           i++;
         }
       }
@@ -102,9 +113,13 @@ async function fetchModule(url) {
   const labels = document.querySelectorAll(".detail-label");
 
   const { moduleId, department, level } = parseModuleId(labels);
-  const title = labels.find(element => element.textContent === "Bezeichnung")?.nextElementSibling?.textContent;
-  const organizer = labels.find(element => element.textContent === "Veranstalter")?.nextElementSibling?.textContent;
-  const credits = labels.find(element => element.textContent === "Credits")?.nextElementSibling?.textContent;
+  const title = labels.find((element) => element.textContent === "Bezeichnung")
+    ?.nextElementSibling?.textContent;
+  const organizer = labels.find(
+    (element) => element.textContent === "Veranstalter"
+  )?.nextElementSibling?.textContent;
+  const credits = labels.find((element) => element.textContent === "Credits")
+    ?.nextElementSibling?.textContent;
   const version = parseVersion(document);
   const abstract = parseAbstract(document);
 
@@ -118,8 +133,8 @@ async function fetchModule(url) {
     organizer,
     credits,
     version,
-    abstract
-  }
+    abstract,
+  };
 }
 
 async function insertModule(module) {
@@ -128,7 +143,7 @@ async function insertModule(module) {
     gql`
       mutation ($infoObject: [AddInfoObjectInput!]!) {
         addInfoObject(input: $infoObject, upsert: true) {
-          infoObject { 
+          infoObject {
             link
           }
         }
@@ -142,8 +157,18 @@ async function insertModule(module) {
         dateUpdate: Date.now() / 1000,
         title: module.title,
         abstract: module.abstract,
-        departments: module.department ? [{ id: `department_${module.department}` }] : undefined
-      }
+        departments: module.department
+          ? [{ id: `department_${module.department}` }]
+          : undefined,
+        extras: JSON.stringify({
+          eventoId: module.eventoId,
+          moduleId: module.moduleId,
+          level: module.level,
+          organizer: module.organizer,
+          credits: module.credits,
+          version: module.version,
+        })
+      },
     }
   );
 
@@ -158,20 +183,21 @@ export async function run() {
       logger.info(`Fetched ${urls.length} modules`);
 
       while (urls.length) {
-        logger.info(`Processing next ${config.batchSize} modules.`)
+        logger.info(`Processing next ${config.batchSize} modules.`);
 
         for (const url of urls.splice(0, config.batchSize)) {
           try {
             const module = await fetchModule(url);
             await insertModule(module);
-          }
-          catch (err) { 
+          } catch (err) {
             logger.error(err);
           }
         }
 
         logger.info(`${urls.length} modules remaining.`);
-        logger.info(`Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules.`);
+        logger.info(
+          `Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules.`
+        );
 
         await setTimeout(config.batchInterval * 1000);
       }
@@ -179,8 +205,8 @@ export async function run() {
       logger.error(err);
     }
 
-    logger.info(`Finished import`)
-    logger.info(`Waiting for ${config.importInterval}s before the next run`)
+    logger.info(`Finished import`);
+    logger.info(`Waiting for ${config.importInterval}s before the next run`);
 
     await setTimeout(config.importInterval * 1000);
   }
