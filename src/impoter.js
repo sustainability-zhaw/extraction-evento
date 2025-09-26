@@ -38,12 +38,13 @@ async function fetchModuleList() {
 
 function parseModuleId(labels) {
   const moduleId = labels.find((element) => element.textContent === "Nr.")?.nextElementSibling?.textContent;
-  const result = /^(?<dep>[a-z])\.(?<level>[A-Z]{2})\.(?<program>[A-Z]{1,})\./.exec(moduleId ?? "");
+  const result = /^(?<dep>[a-z])\.(?<level>[A-Z]{2})\.(?<program>[\w+\-]+)\.(?:[\w+\-]+)\.(?<semester>[\w]+)/.exec(moduleId ?? "");
   return {
     moduleId: moduleId,
     department: result?.groups?.dep.toUpperCase(),
     level: result?.groups?.level,
-    program: result?.groups?.program
+    program: result?.groups?.program,
+    semester: result?.groups?.semester
   };
 }
 
@@ -98,7 +99,7 @@ async function fetchModule(url) {
 
   const labels = document.querySelectorAll(".detail-label");
 
-  const { moduleId, department, level, program } = parseModuleId(labels);
+  const { moduleId, department, level, program, semester } = parseModuleId(labels);
   const title = labels.find((element) => element.textContent === "Bezeichnung")?.nextElementSibling?.textContent;
   const organizer = labels.find((element) => element.textContent === "Veranstalter")?.nextElementSibling?.textContent;
   const credits = labels.find((element) => element.textContent === "Credits")?.nextElementSibling?.textContent;
@@ -111,6 +112,7 @@ async function fetchModule(url) {
     moduleId,
     department,
     program,
+    semester,
     level,
     title,
     organizer,
@@ -145,6 +147,8 @@ async function upsertModule(module) {
           eventoId: module.eventoId,
           moduleId: module.moduleId,
           level: module.level,
+          program: module.program,
+          semester: module.semester,
           organizer: module.organizer,
           credits: module.credits,
           version: module.version,
