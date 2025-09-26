@@ -7,4 +7,4 @@ COPY package.json package-lock.json LICENSE ./
 
 RUN npm ci
 
-CMD ["src/index.js"]
+CMD ["node", "src/index.js"]
