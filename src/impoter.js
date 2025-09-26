@@ -38,19 +38,13 @@ async function fetchModuleList() {
 
 function parseModuleId(labels) {
   const moduleId = labels.find((element) => element.textContent === "Nr.")?.nextElementSibling?.textContent;
-
-  let department;
-  let level;
-
-  const isValidDepartment = (value) => ["A", "G", "L", "N", "P", "S", "T", "W", "R", "V"].includes(value.toUpperCase());
-
-  if (moduleId) {
-    const values = moduleId.split(".");
-    if (values.length > 0 && isValidDepartment(values[0])) department = values[0].toUpperCase();
-    if (values.length > 1) level = values[1];
-  }
-
-  return { moduleId, department, level };
+  const result = /^(?<dep>[a-z])\.(?<level>[A-Z]{2})\.(?<program>[A-Z]{1,})\./.exec(moduleId ?? "");
+  return {
+    moduleId: moduleId,
+    department: result?.groups?.dep.toUpperCase(),
+    level: result?.groups?.level,
+    program: result?.groups?.program
+  };
 }
 
 function parseVersion(document) {
@@ -104,7 +98,7 @@ async function fetchModule(url) {
 
   const labels = document.querySelectorAll(".detail-label");
 
-  const { moduleId, department, level } = parseModuleId(labels);
+  const { moduleId, department, level, program } = parseModuleId(labels);
   const title = labels.find((element) => element.textContent === "Bezeichnung")?.nextElementSibling?.textContent;
   const organizer = labels.find((element) => element.textContent === "Veranstalter")?.nextElementSibling?.textContent;
   const credits = labels.find((element) => element.textContent === "Credits")?.nextElementSibling?.textContent;
@@ -116,6 +110,7 @@ async function fetchModule(url) {
     eventoId,
     moduleId,
     department,
+    program,
     level,
     title,
     organizer,
@@ -125,7 +120,7 @@ async function fetchModule(url) {
   };
 }
 
-async function insertModule(module) {
+async function upsertModule(module) {
   await request(
     `http://${config.dbHost}/graphql`,
     gql`
@@ -157,40 +152,42 @@ async function insertModule(module) {
       },
     }
   );
-
-  await mq.publish("infoObject", { link: module.url });
 }
 
 export async function run() {
   while (true) {
     try {
-      logger.info("Fetching module list");
+      logger.info("Fetching module list.");
       const urls = await fetchModuleList();
-      logger.info(`Fetched ${urls.length} modules`);
+      logger.info(`Fetched ${urls.length} modules.`);
 
       while (urls.length) {
         logger.info(`Processing next ${config.batchSize} modules.`);
+        const batch = urls.splice(0, config.batchSize <= 0 ? urls.length : config.batchSize);
 
-        for (const url of urls.splice(0, config.batchSize)) {
+        for (const url of batch) {
           try {
             const module = await fetchModule(url);
-            await insertModule(module);
+            await upsertModule(module);
+            await mq.publish("infoObject", { link: module.url });
           } catch (err) {
             logger.error(err);
           }
         }
 
         logger.info(`${urls.length} modules remaining.`);
-        logger.info(`Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules.`);
 
-        await setTimeout(config.batchInterval * 1000);
+        if (urls.length) {
+          logger.info(`Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules.`);
+          await setTimeout(config.batchInterval * 1000);
+        }
       }
     } catch (err) {
       logger.error(err);
     }
 
-    logger.info(`Finished import`);
-    logger.info(`Waiting for ${config.importInterval}s before the next run`);
+    logger.info("Finished import.");
+    logger.info(`Waiting for ${config.importInterval}s before the next run.`);
 
     await setTimeout(config.importInterval * 1000);
   }
