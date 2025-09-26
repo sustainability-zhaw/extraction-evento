@@ -37,21 +37,16 @@ async function fetchModuleList() {
 }
 
 function parseModuleId(labels) {
-  const moduleId = labels.find((element) => element.textContent === "Nr.")
-    ?.nextElementSibling?.textContent;
+  const moduleId = labels.find((element) => element.textContent === "Nr.")?.nextElementSibling?.textContent;
 
   let department;
   let level;
 
-  const isValidDepartment = (value) =>
-    ["A", "G", "L", "N", "P", "S", "T", "W", "R", "V"].includes(
-      value.toUpperCase()
-    );
+  const isValidDepartment = (value) => ["A", "G", "L", "N", "P", "S", "T", "W", "R", "V"].includes(value.toUpperCase());
 
   if (moduleId) {
     const values = moduleId.split(".");
-    if (values.length > 0 && isValidDepartment(values[0]))
-      department = values[0].toUpperCase();
+    if (values.length > 0 && isValidDepartment(values[0])) department = values[0].toUpperCase();
     if (values.length > 1) level = values[1];
   }
 
@@ -59,9 +54,7 @@ function parseModuleId(labels) {
 }
 
 function parseVersion(document) {
-  const element = document
-    .querySelectorAll("i")
-    .find((el) => el.textContent.trim().startsWith("Version: "));
+  const element = document.querySelectorAll("i").find((el) => el.textContent.trim().startsWith("Version: "));
 
   if (element) {
     const result = /^Version: (?<version>\d+\.\d+)/.exec(element.textContent);
@@ -86,8 +79,7 @@ function parseAbstract(document) {
         while (i < firstColCells.length - 1) {
           const labelCellBelow = firstColCells[i + 1];
           if (labelCellBelow.textContent?.trim() !== "") break;
-          abstract +=
-            labelCellBelow.nextElementSibling?.textContent.trim() ?? "";
+          abstract += labelCellBelow.nextElementSibling?.textContent.trim() ?? "";
           i++;
         }
       }
@@ -113,13 +105,9 @@ async function fetchModule(url) {
   const labels = document.querySelectorAll(".detail-label");
 
   const { moduleId, department, level } = parseModuleId(labels);
-  const title = labels.find((element) => element.textContent === "Bezeichnung")
-    ?.nextElementSibling?.textContent;
-  const organizer = labels.find(
-    (element) => element.textContent === "Veranstalter"
-  )?.nextElementSibling?.textContent;
-  const credits = labels.find((element) => element.textContent === "Credits")
-    ?.nextElementSibling?.textContent;
+  const title = labels.find((element) => element.textContent === "Bezeichnung")?.nextElementSibling?.textContent;
+  const organizer = labels.find((element) => element.textContent === "Veranstalter")?.nextElementSibling?.textContent;
+  const credits = labels.find((element) => element.textContent === "Credits")?.nextElementSibling?.textContent;
   const version = parseVersion(document);
   const abstract = parseAbstract(document);
 
@@ -157,9 +145,7 @@ async function insertModule(module) {
         dateUpdate: Date.now() / 1000,
         title: module.title,
         abstract: module.abstract,
-        departments: module.department
-          ? [{ id: `department_${module.department}` }]
-          : undefined,
+        departments: module.department ? [{ id: `department_${module.department}` }] : undefined,
         extras: JSON.stringify({
           eventoId: module.eventoId,
           moduleId: module.moduleId,
@@ -167,7 +153,7 @@ async function insertModule(module) {
           organizer: module.organizer,
           credits: module.credits,
           version: module.version,
-        })
+        }),
       },
     }
   );
@@ -195,9 +181,7 @@ export async function run() {
         }
 
         logger.info(`${urls.length} modules remaining.`);
-        logger.info(
-          `Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules.`
-        );
+        logger.info(`Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules.`);
 
         await setTimeout(config.batchInterval * 1000);
       }
