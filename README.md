@@ -7,9 +7,10 @@ Imports modules from the ZHAW Evento Web search.
 The following can be configured by providing a JSON file at `/etc/app/config.json`.
 An additional JSON file is read from `/etc/app/secrets.json` that can be used for sensitive information.
 
+- `eventoSearchUrl` - Wevent Web search url. Defaults to [`Evento Web ZHAW`](https://eventoweb.zhaw.ch/Evt_Pages/SuchResultat.aspx?node=c594e3e5-cd9a-4204-9a61-de1e43ccb7b0&Tabkey=WebTab_ModuleSuchenZHAW)
 - `dbHost` - GraphQL host. Defaults to `localhost:8080`.
-- `batchInterval` - Time in seconds between fetching modules. Defualts to `86400` (24h).
-- `batchSize` - Process the fetched project list in batches. Defaults to `100`. Zero or negative value disables batching.
+- `importInterval` - Time in seconds between fetching modules. Defualts to `86400` (24h).
+- `batchSize` - Process the fetched module list in batches. Defaults to `100`. Zero or negative value disables batching.
 - `batchInterval` - Time in seconds to wait before processing the next batch. Defaults to `300` (5 min). Ignored if batch size is zero or negative value.
 - `mqHost` - RabbitMQ host. Defaults to `mq`.
 - `mqUser` - RabbitMQ user. Defaults to `guest`.
