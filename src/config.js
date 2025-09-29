@@ -1,10 +1,9 @@
 import { defu } from "defu";
 import { pathToFileURL } from "node:url";
 
-const configPromises = [
-  "/etc/app/config.json",
-  "/etc/app/secrets.json"
-].map((path) => import(pathToFileURL(path).toString()));
+const configPromises = ["/etc/app/config.json", "/etc/app/secrets.json"].map((path) =>
+  import(pathToFileURL(path).toString(), { with: { type: "json" } }).then((mod) => mod.default)
+);
 
 const configs = (await Promise.allSettled(configPromises))
   .filter((p) => p.status === "fulfilled")
