@@ -143,7 +143,7 @@ async function upsertModule(module) {
         title: module.title,
         abstract: module.abstract,
         departments: module.department ? [{ id: `department_${module.department}` }] : undefined,
-        /*extras: JSON.stringify({
+        extra_json: JSON.stringify({
           eventoId: module.eventoId,
           moduleId: module.moduleId,
           level: module.level,
@@ -152,7 +152,7 @@ async function upsertModule(module) {
           organizer: module.organizer,
           credits: module.credits,
           version: module.version,
-        }),*/
+        }),
       },
     }
   );
