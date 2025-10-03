@@ -1,0 +1,32 @@
+{
+  "name": "extraction-evento",
+  "version": "1.0.0",
+  "description": "Extraction Pipeline for Evento",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sustainability-zhaw/extraction-evento.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/sustainability-zhaw/extraction-evento/issues"
+  },
+  "homepage": "https://github.com/sustainability-zhaw/extraction-evento#readme",
+  "dependencies": {
+    "amqplib": "^0.10.9",
+    "defu": "^6.1.4",
+    "graphql": "^16.11.0",
+    "graphql-request": "^7.2.0",
+    "linkedom": "^0.18.12",
+    "rascal": "^20.1.1",
+    "service_logger": "github:phish108/node-service-logger#5da8533"
+  },
+  "devDependencies": {
+    "h3": "^1.15.4",
+    "listhen": "^1.9.0"
+  }
+}
