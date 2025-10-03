@@ -41,7 +41,7 @@ function parseModuleId(labels) {
   const values = (moduleId ?? "").split(".")
   return {
     moduleId: moduleId,
-    department: values[0],
+    department: values[0]?.toUpperCase(),
     level: values[1],
     module: values[2],
     course: values[3],
