@@ -3,7 +3,7 @@ FROM node:24-slim
 WORKDIR /app
 
 COPY src/ ./src/
-COPY package.json package-lock.json LICENSE ./
+COPY package.json package-lock.json ./
 
 RUN npm ci
 
