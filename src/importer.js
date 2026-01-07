@@ -38,14 +38,14 @@ async function fetchModuleList() {
 
 function parseModuleId(labels) {
   const moduleId = labels.find((element) => element.textContent === "Nr.")?.nextElementSibling?.textContent;
-  const values = (moduleId ?? "").split(".")
+  const values = (moduleId ?? "").split(".");
   return {
     moduleId: moduleId,
     department: values[0]?.toUpperCase(),
     level: values[1],
     module: values[2],
     course: values[3],
-    semester: values[4]
+    semester: values[4],
   };
 }
 
@@ -145,55 +145,118 @@ async function upsertModule(module) {
         title: module.title,
         abstract: module.abstract,
         departments: module.department ? [{ id: `department_${module.department}` }] : undefined,
-        extra_json: JSON.stringify({
-          eventoId: module.eventoId,
-          moduleId: module.moduleId,
-          level: module.level,
-          module: module.module,
-          course: module.course,
-          semester: module.semester,
-          organizer: module.organizer,
-          credits: module.credits,
-          version: module.version,
-        }),
+        moduleId: module.moduleId,
+        version: module.version,
+        level: module.level,
+        course: module.course,
+        semester: module.semester,
+        organizer: module.organizer,
+        credits: module.credits,
       },
     }
+  );
+}
+
+async function importModules() {
+  logger.info("Fetching module list.");
+  const urls = await fetchModuleList();
+  logger.info(`Fetched ${urls.length} modules.`);
+
+  while (urls.length) {
+    logger.info(`Processing next ${config.batchSize} modules.`);
+    const batch = urls.splice(0, config.batchSize <= 0 ? urls.length : config.batchSize);
+
+    for (const url of batch) {
+      try {
+        const module = await fetchModule(url);
+        await upsertModule(module);
+        await mq.publish("infoObject", { link: module.url });
+      } catch (err) {
+        logger.error(err);
+      }
+    }
+
+    logger.info(`${urls.length} modules remaining.`);
+
+    if (urls.length) {
+      logger.info(`Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules.`);
+      await setTimeout(config.batchInterval * 1000);
+    }
+  }
+  logger.info("Finished import.");
+}
+
+async function queryExtractionLastRunDate() {
+  const data = await request(
+    `http://${config.dbHost}/graphql`,
+    gql`
+      query getExtractionLastRun($serviceId: String!) {
+        getExtractionLastRun(serviceId: $serviceId) {
+          lastRunAt
+        }
+      }
+    `,
+    {
+      serviceId: "extraction-evento",
+    }
+  );
+  return data?.getExtractionLastRun?.lastRunAt;
+}
+
+async function updateExtractionLastRunDate() {
+  return request(
+    `http://${config.dbHost}/graphql`,
+    gql`
+      mutation ($input: [AddExtractionLastRunInput!]!) {
+        addExtractionLastRun(input: $input, upsert: true) {
+          extractionLastRun {
+            serviceId
+            lastRunAt
+          }
+        }
+      }
+    `,
+    {
+      input: {
+        serviceId: "extraction-evento",
+        lastRunAt: Date.now() / 1000,
+      },
+    }
+  );
+}
+
+async function shouldRunImport() {
+  if (!config.importDates.length) return true;
+
+  const extractionLastRunDateString = await queryExtractionLastRunDate();
+  let extractionLastRunDate = new Date(extractionLastRunDateString);
+  extractionLastRunDate = isNaN(extractionLastRunDate) ? new Date(0) : extractionLastRunDate;
+  const lastExtractionRunMonthDay =
+    String(extractionLastRunDate.getUTCMonth() + 1).padStart(2, "0") +
+    "-" +
+    String(extractionLastRunDate.getUTCDate()).padStart(2, "0");
+
+  const now = new Date();
+  const todayMonthDay =
+    String(now.getUTCMonth() + 1).padStart(2, "0") + "-" + String(now.getUTCDate()).padStart(2, "0");
+  return config.importDates.some(
+    (importDate) => importDate == todayMonthDay && lastExtractionRunMonthDay < todayMonthDay
   );
 }
 
 export async function run() {
   while (true) {
     try {
-      logger.info("Fetching module list.");
-      const urls = await fetchModuleList();
-      logger.info(`Fetched ${urls.length} modules.`);
-
-      while (urls.length) {
-        logger.info(`Processing next ${config.batchSize} modules.`);
-        const batch = urls.splice(0, config.batchSize <= 0 ? urls.length : config.batchSize);
-
-        for (const url of batch) {
-          try {
-            const module = await fetchModule(url);
-            await upsertModule(module);
-            await mq.publish("infoObject", { link: module.url });
-          } catch (err) {
-            logger.error(err);
-          }
-        }
-
-        logger.info(`${urls.length} modules remaining.`);
-
-        if (urls.length) {
-          logger.info(`Waiting for ${config.batchInterval}s before processing the next ${config.batchSize} modules.`);
-          await setTimeout(config.batchInterval * 1000);
-        }
+      if (await shouldRunImport()) {
+        await importModules();
+        await updateExtractionLastRunDate();
+      } else {
+        logger.info("Skipping import.")
       }
     } catch (err) {
       logger.error(err);
     }
 
-    logger.info("Finished import.");
     logger.info(`Waiting for ${config.importInterval}s before the next run.`);
 
     await setTimeout(config.importInterval * 1000);
